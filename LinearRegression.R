@@ -1,10 +1,13 @@
 # File Containing Linear Regression Code
 
+# For information on the algorithm used: https://arxiv.org/pdf/2103.03475.pdf
 
 # Assumes X is a matrix of nxp,
 # Assumes y is a vector of nx1
 # Lambda is a positive value for the strength of penalty on the L1 and L2 regularization
 # Alpha is a continuous parameter on [0,1] determining the weighted average of the penalties
+
+
 solveLR <- function(X, y, lamdba = c(), alpha, max_iter = 1000, ...) {
   
   solved = FALSE

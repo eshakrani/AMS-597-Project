@@ -26,5 +26,5 @@ checkData <- function(X,y) {
   }
   
   
-  return(list(X = X, y = y))
+  return(cbind(y,X))
 }

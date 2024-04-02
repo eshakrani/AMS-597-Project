@@ -24,6 +24,9 @@ checkData <- function(X,y) {
     y <- y[-row_drop_index_y]
     X <- X[-row_drop_index_y,]
   }
+  X <- scale(X)
+  X <- cbind(rep(1,r),X)
+  
   
   
   return(cbind(y,X))

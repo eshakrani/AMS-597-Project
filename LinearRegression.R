@@ -15,7 +15,6 @@ elasticLR <- function(X, y, l, alpha = 0.5, tolerance = 1e-5, path.length = 100,
   r <- dim(data)[1]
   c <- dim(data)[2] - 1
   X <- as.matrix(data[,-1], byrow = T)
-  X <- cbind(rep(1,r),X)
   y <- as.matrix(data[,1], byrow = T)
   beta_hats <- as.matrix(rep(0,c + 1), nrow = c + 1)
 

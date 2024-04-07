@@ -17,17 +17,27 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   
   if (topP) {
     # Select top K predictors to be the X matrix
+    # Create lambda max * epsilon
+    # fit lasso regression with bagging
+    # calculate the proportion of times feature i appears
+    # pick the top K
   }
   
   if (!bagging) {
     if (ensemble & family == 'gaussian') {
-      # Not sure what to do about this yet.
+      
+      # Going to perform Stacking
+      # will take the predicted values from linear regression
+      # fitted on X and having SVM fit onto [X,y^]
+      # return that SVM model
       
     }
     
     else if (ensemble & family == 'binomial') {
-      # Not sure what to do about this yet.
-
+      # Going to perform Stacking
+      # will take the predicted values from logistic regression
+      # fitted on X and having SVM fit onto [X,y^]
+      # return that SVM model
     }
     
     

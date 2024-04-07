@@ -43,7 +43,11 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     
     else if (family == 'gaussian') {
       
+      # If cross validation use the below Regression function
       results <- fitLinearRegressor(...)
+      
+      # If not cross validation uses tony's functions to return a specific
+      # 
     }
     
     else if (family == 'binomial') {
@@ -55,7 +59,12 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   
   if (bagging) {
     
-    
+    #' The bagging procedure is simple, only implement for the regression models
+    #' For the weight on the bagging procedure to get the final prediction
+    #' one possibility is to a uniform weighting. Another is to have an option
+    #' when the data is highly skewed/imbalanced on the classification side 
+    #' to weight the models that predict the in balanced category better more heavily. 
+    #'
     
   }
 }

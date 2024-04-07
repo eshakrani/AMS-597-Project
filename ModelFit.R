@@ -4,7 +4,7 @@ library(glmnet)
 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
-                     K = 0, ensemble = FALSE) {
+                     K = 10, ensemble = FALSE) {
   
   data <- checkData(X,y)
   X <- data[,-1]

@@ -1,7 +1,19 @@
 library(glmnet)
 
-# Not sure what measures to put, maybe leave it null.
 
+#' @param X Input matrix of co-variates, n by p.
+#' @param y Response vector, n by 1.
+#' @param family Output distribution of the y vector (gaussian or binomial)
+#' @param measure 
+#' @param lambda Regularization parameter(s). When cv is false enter 1 value, when cv is true enter a list
+#' @param alpha ElasticNet mixing parameter(s). When cv is false enter 1 value, when cv is true enter a list
+#' @param bagging Logical
+#' @param topP Indicating whether to perform feature pre screening
+#' @param K Number of top predictors to use.
+#' @param ensemble Logical indicating whether to use ensemble learning.
+#' @param cv Logical indicating whether to perform cross-validation.
+#' 
+#' 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
                      K = 10, ensemble = FALSE, cv = FALSE) {
@@ -10,10 +22,19 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   X <- data[,-1]
   y <- data[,1]
   
-  family = c(family)[1]
+  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv)
   
-  lambda <- c(lambda)
-  alpha <- c(alpha)
+  if (identical(family, c("gaussian","binomial"))) {
+    family <- "gaussian"
+  }
+  
+  # Automatically choose the first option if measure is left as default
+  if (identical(measure, c("mse","auc"))) {
+    measure <- "mse"
+  }
+  
+  model <- NULL
+  
   
   if (topP) {
     # Select top K predictors to be the X matrix
@@ -44,7 +65,13 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     else if (family == 'gaussian') {
       
       # If cross validation use the below Regression function
-      results <- fitLinearRegressor(...)
+      if (cv) 
+        model <- fitLinearRegressor(...)
+      
+      else {
+        model <- glmnet(X, y, alpha = alpha, lambda = lambda)
+      }
+        
       
       # If not cross validation uses tony's functions to return a specific
       # version of linear regression (OLS,lasso,ridge)
@@ -52,7 +79,10 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     
     else if (family == 'binomial') {
       
-      results <- fitLinearClassification(...)
+      if (cv) 
+        results <- fitLinearClassification(...)
+      else
+        model <- glmnet(X,y,alpha = alpha, lambda = lambda, family = 'binomial')
       
     }
   }
@@ -68,11 +98,13 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   }
 }
 
-
-#' Fit Linear Regressor with Elastic Net Regularization
+#' @name 
+#' Fit Linear Regression
 #' 
-#' This function searches for the best fit linear regression model with 
-#' elastic net regularization. 
+#' @description 
+#' This function searches for the best fit linear regression model using:
+#' elastic net penalty, cross validation, train-test split, and grid search.
+#' All model fitting is done using glmnet.  
 #' 
 #' @param X The matrix of predictor variables.
 #' @param y The vector of response variable.
@@ -82,6 +114,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
 #'        Alpha = 1 corresponds to Lasso regression, Alpha = 0 corresponds to Ridge regression, 
 #'        and values in between represent a combination of Lasso and Ridge. 
 #' @param nfolds Number of folds for cross-validation. Default is 5.
+#' @param test_size Size of the test set
 #' 
 #' @return Best fit model over a grid search of lambdas and alphas using cv.glmnet
 #' 
@@ -105,6 +138,7 @@ fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_
   
   best_model <- NULL
   best_cv_error <- Inf
+  final_model <- NULL
   
   for (alpha in alphas) {
 
@@ -131,15 +165,19 @@ fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_
     
   }
   
-  return(models)
+  return(final_model)
 }
 
 
 
-#' Fit Logistic Regression with Elastic Net Regularization
+
+#' @name 
+#' Fit Logistic Regression
 #' 
-#' This function searches for the best fit logistic regression model with 
-#' elastic net regularization and cross validation.
+#' @description 
+#' This function searches for the best fit logistic regression model using:
+#' elastic net penalty, cross validation, train-test split, and grid search.
+#' All model fitting is done using glmnet.  
 #' 
 #' @param X The matrix of predictor variables.
 #' @param y The vector of response variable.
@@ -149,6 +187,7 @@ fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_
 #'        Alpha = 1 corresponds to Lasso regression, Alpha = 0 corresponds to Ridge regression, 
 #'        and values in between represent a combination of Lasso and Ridge. 
 #' @param nfolds Number of folds for cross-validation. Default is 5.
+#' @param test_size Size of the test set
 #' 
 #' @return Best fit model over a grid search of lambdas and alphas using cv.glmnet
 #' 
@@ -156,7 +195,7 @@ fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_
 #' 
 #' @export
 
-fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5) {
+fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5,  test_size = 0.2) {
   require(glmnet)
   
   set.seed(123)  # For reproducibility
@@ -172,6 +211,7 @@ fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5) {
   
   best_model <- NULL
   best_cv_error <- Inf
+  final_model <- NULL
   
   for (alpha in alphas) {
     
@@ -201,5 +241,5 @@ fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5) {
     
   }
   
-  return(best_model)
+  return(final_model)
 }

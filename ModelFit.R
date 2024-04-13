@@ -80,7 +80,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     else if (family == 'binomial') {
       
       if (cv) 
-        results <- fitLinearClassification(...)
+        model <- fitLinearClassification(...)
       else
         model <- glmnet(X,y,alpha = alpha, lambda = lambda, family = 'binomial')
       

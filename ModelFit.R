@@ -16,13 +16,16 @@ library(glmnet)
 #' 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
-                     K = 10, ensemble = FALSE, cv = FALSE) {
+                     K = 10, ensemble = FALSE, cv = FALSE, nfolds = 5, test_size = 0.2,
+                     R = 100) {
+
   
   data <- checkData(X,y)
   X <- data[,-1]
   y <- data[,1]
   
-  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv)
+  #checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv)
+  # Check assumptions was having issues, will fix later.
   
   if (identical(family, c("gaussian","binomial"))) {
     family <- "gaussian"
@@ -66,10 +69,11 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
       
       # If cross validation use the below Regression function
       if (cv) 
-        model <- fitLinearRegressor(...)
+        model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
+                                    nfolds = nfolds, test_size = test_size)
       
       else {
-        model <- glmnet(X, y, alpha = alpha, lambda = lambda)
+        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = 'gaussian')
       }
         
       
@@ -80,7 +84,8 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     else if (family == 'binomial') {
       
       if (cv) 
-        model <- fitLinearClassification(...)
+        model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
+                                         nfolds = nfolds, test_size = test_size)
       else
         model <- glmnet(X,y,alpha = alpha, lambda = lambda, family = 'binomial')
       
@@ -95,6 +100,25 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     #' when the data is highly skewed/imbalanced on the classification side 
     #' to weight the models that predict the in balanced category better more heavily. 
     
+    if (family == 'gaussian') {
+      
+      y_pred_avg <- rep(0,length(y))
+      for (i in 1:R) {
+        id <- sample(1:nrow(X), nrow(X), replace = T)
+        
+        X_bootstrap <- X[id,]
+        y_bootstrap <- y[id]
+        
+        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = 'gaussian')
+        
+        y_pred <- predict(model, newx = X)
+        y_pred_avg <- y_pred_avg + 1/R * y_pred
+        
+      }
+      return(y_pred_avg)
+  
+    
+    }
   }
 }
 
@@ -122,7 +146,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
 #' 
 #' @export
 
-fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_size = 0.2) {
+fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_size = 0.2) {
   require(glmnet)
   
   set.seed(123)  # For reproducibility
@@ -195,7 +219,7 @@ fitLinearRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5, test_
 #' 
 #' @export
 
-fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5,  test_size = 0.2) {
+fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5,  test_size = 0.2) {
   require(glmnet)
   
   set.seed(123)  # For reproducibility
@@ -224,11 +248,10 @@ fitLogisticRegressor <- function(X, y, loss, lambda = 0, alphas, nfolds = 5,  te
     model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best,
                     family = 'binomial')
     
-    # Predict on test set
-    y_pred <- predict(model, newx = X_test)
     
-    # Calculate mean squared error on test set
-    cv_error <- mean((y_test - y_pred)^2)
+    # NEEDS TO BE FIXED, has to calculate non MSE loss metric.
+    # Predict on test set
+    #y_pred <- predict(model, newx = X_test)
     
     # Update best model if current model has lower error
     if (cv_error < best_cv_error) {

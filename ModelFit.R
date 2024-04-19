@@ -12,6 +12,9 @@ library(glmnet)
 #' @param K Number of top predictors to use.
 #' @param ensemble Logical indicating whether to use ensemble learning.
 #' @param cv Logical indicating whether to perform cross-validation.
+#' @param nfolds controls the number of folds for cross validated models
+#' @param test_size controls the test set size for model selection in cross validated models
+#' @param R Number of iterations for bootstrap
 #' 
 #' 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
@@ -24,19 +27,22 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   X <- data[,-1]
   y <- data[,1]
   
-  #checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv)
+  checkAssumptions(family = family, measure = measure, lambda = lambda, alpha = alpha
+                   , bagging = bagging, topP = topP, K = K, ensemble = ensemble
+                   , cv = cv, R = R)
   # Check assumptions was having issues, will fix later.
   
   if (identical(family, c("gaussian","binomial"))) {
-    family <- "gaussian"
+    family <- family[1]
   }
   
   # Automatically choose the first option if measure is left as default
   if (identical(measure, c("mse","auc"))) {
-    measure <- "mse"
+    measure <- measure[1]
   }
   
-  model <- NULL
+  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, 
+                   cv, nfolds, test_size, R)
   
   
   if (topP) {
@@ -76,6 +82,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = 'gaussian')
       }
         
+      return(model)  
       
       # If not cross validation uses tony's functions to return a specific
       # version of linear regression (OLS,lasso,ridge)
@@ -88,8 +95,10 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
                                          nfolds = nfolds, test_size = test_size)
       else
         model <- glmnet(X,y,alpha = alpha, lambda = lambda, family = 'binomial')
-      
+  
+      return(model)    
     }
+  
   }
   
   if (bagging) {
@@ -109,15 +118,36 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
         
-        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = 'gaussian')
+        model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
         
         y_pred <- predict(model, newx = X)
         y_pred_avg <- y_pred_avg + 1/R * y_pred
         
       }
+      
       return(y_pred_avg)
   
     
+    }
+    
+    if (family == 'binomial') {
+      
+      y_pred_avg <- rep(0,length(y))
+      for (i in 1:R) {
+        id <- sample(1:nrow(X), nrow(X), replace = T)
+        
+        X_bootstrap <- X[id,]
+        y_bootstrap <- y[id]
+        
+        model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+        
+        y_pred <- predict(model, newx = X, type = 'response')
+        y_pred_avg <- y_pred_avg + 1/R * y_pred
+        
+      }
+      
+      return(y_pred_avg)
+      
     }
   }
 }

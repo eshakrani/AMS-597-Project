@@ -27,37 +27,31 @@ checkData <- function(X,y) {
   return(cbind(y,X))
 }
 
-checkAssumptions <- function(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv) {
+checkAssumptions <- function(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv,
+                             nfolds, test_size, R) {
   # Check if family is either 'gaussian' or 'binomial'
-  if (!(family %in% c("gaussian", "binomial"))) {
+  if (!identical(family, 'gaussian') & !identical(family,'binomial')) 
     stop("Family parameter must be either 'gaussian' or 'binomial'")
-  }
   
   # Check if measure is either 'mse' or 'auc'
   #if (!(measure %in% c("mse", "auc"))) {
   #  stop("Measure parameter must be either 'mse' or 'auc'")
   #}
   
-  # Check lambda and alpha
-  if (!cv) {
-    # If cv is false, lambda and alpha should be single values
-    if (length(lambda) != 1 || length(alpha) != 1) {
-      stop("When cv is false, lambda and alpha should be single values.")
-    }
-  } else {
-    # If cv is true, lambda and alpha should be lists
-    if (!is.list(lambda) || !is.list(alpha)) {
-      stop("When cv is true, lambda and alpha should be lists.")
-    }
-  }
-  
   # Check if bagging, topP, ensemble, and cv are logical
-  if (!is.logical(bagging) || !is.logical(topP) || !is.logical(ensemble) || !is.logical(cv)) {
+  if (!is.logical(bagging) || !is.logical(topP) || !is.logical(ensemble) || !is.logical(cv)) 
     stop("bagging, topP, ensemble, and cv parameters must be logical.")
-  }
+  
+  # Check lambda and alpha
+  if (cv) 
+    if (nfolds < 2 | !is.integer(nfolds))
+      stop("Number of folds must be a positive integer greater than 2 when cv is choosen.")
   
   # Check if K is numeric and greater than 1
-  if (!is.numeric(K) || K < 1) {
+  if (K %% 1 != 0 | K < 1) {
     stop("K parameter must be numeric and greater than 0.")
   }
+  
+  if (R %% 1 != 0 | R < 1) 
+    stop("(R) Number of boostraps must be a positive integer.")
 }

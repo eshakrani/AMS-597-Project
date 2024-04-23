@@ -188,9 +188,9 @@ top_K_predictors <- function(coefficients, K) {
 ##########################################
 #Bagging for linear, logistic,  ridge, lasso , and elastic net
 #Can change for each regression 
-# final_predictions <- bagging_regression(X, y, model_func = lm)
-# final_predictions <- bagging_regression(X, y, model_func = glm)
-# final_predictions <- bagging_regression(X, y, model_func = ridge_regression_glmnet)
+# final_predictions <- bagging_and_variable_importance(X, y, model_func = lm)
+# final_predictions <- bagging_and_variable_importance(X, y, model_func = glm)
+# final_predictions <- bagging_and_variable_importance(X, y, model_func = ridge_regression_glmnet)
 # NOTE: Might need to adjust for the main function because of layout 
 
 
@@ -202,28 +202,38 @@ top_K_predictors <- function(coefficients, K) {
 # 5. Count the number of times each variable is selected in the bagging process. Variables that are selected more frequently are considered more important.
 
 # Function to perform bagging for regression models and calculate variable importance score
-#NOTE: Might need to adjust for the main function because of layout and naive score, needs to be adjusted  
+#NOTE: Might need to adjust for the main function because of layout 
 bagging_and_variable_importance <- function(X, y, model_func, num_models = 100) {
   n <- nrow(X)
   predictions <- matrix(0, nrow = n, ncol = num_models)
-  naive <- rep(0, ncol(X))
   
   for (i in 1:num_models) {
     indices <- sample(1:n, replace = TRUE) #Sample with replacement
-    X_boot <- X[indices, ]
+    X_boot <- X[indices, , drop = FALSE]  # Ensure X_boot is a data frame
     y_boot <- y[indices]
     
-    model <- model_func(X_boot, y_boot)
+    # Combine X_boot and y_boot into a data frame in order for model_func to work 
+    boot_data <- cbind(X_boot, y_boot)
     
+    model <- model_func(y_boot ~ ., data = boot_data)  # Fit the model
     
     predictions[, i] <- predict(model, newdata = X)
     
-    naive <- naive + as.numeric(coef(model) != 0)
+    if (i == 1) {
+      naive <- as.numeric(coef(model) != 0)
+    } else {
+      naive <- naive + as.numeric(coef(model) != 0)
+    }
   }
   
   # Average predictions across all models (Soft Voting)
   final_predictions <- rowMeans(predictions)
   
-  
   return(list(predictions = final_predictions, naive = naive))
 }
+#Example of Bagging 
+data("ethanol")
+ethanol
+str(ethanol)
+bagging_and_variable_importance(X = ethanol[, -3], y = ethanol$E, model_func = lm, num_models = 100)
+

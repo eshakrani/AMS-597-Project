@@ -5,8 +5,8 @@ library(glmnet)
 #' @param y Response vector, n by 1.
 #' @param family Output distribution of the y vector (gaussian or binomial)
 #' @param measure 
-#' @param lambda Regularization parameter(s). When cv is false enter 1 value, when cv is true enter a list
-#' @param alpha ElasticNet mixing parameter(s). When cv is false enter 1 value, when cv is true enter a list
+#' @param lambda Regularization parameter(s).
+#' @param alpha ElasticNet mixing parameter(s). 
 #' @param bagging Logical
 #' @param topP Indicating whether to perform feature pre screening
 #' @param K Number of top predictors to use.

@@ -11,7 +11,7 @@ library(glmnet)
 #' @param topP Indicating whether to perform feature pre screening
 #' @param K Number of top predictors to use.
 #' @param ensemble Logical indicating whether to use ensemble learning.
-#' @param cv Logical indicating whether to perform cross-validation.
+#' @param cv Logical indicating whether to perform cross-validation. Only for non ensemble learning.
 #' @param nfolds controls the number of folds for cross validated models
 #' @param test_size controls the test set size for model selection in cross validated models
 #' @param R Number of iterations for bootstrap

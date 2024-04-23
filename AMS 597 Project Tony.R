@@ -143,7 +143,7 @@ elastic_net_glmnet <- function(X, y, lambda, alpha) {
 # A nice property of nu is that it is related to the ratio of support vectors 
 # and the ratio of the training error.
 svm_model <- function(X, y, type = "C", kernel = "radial", cost = 1) {
-  library(e1071)
+  require(e1071)
   
   # Train SVM model
   if (type == "C") {

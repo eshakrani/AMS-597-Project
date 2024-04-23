@@ -118,8 +118,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
         
-        model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-        
+        model <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
         y_pred <- predict(model, newx = X)
         y_pred_avg <- y_pred_avg + 1/R * y_pred
         
@@ -138,11 +137,13 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
-        
-        model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-        
+        # needs to be changed to matchthe gaussian version.
+        model <- cv.glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+
         y_pred <- predict(model, newx = X, type = 'response')
         y_pred_avg <- y_pred_avg + 1/R * y_pred
+        
+        
         
       }
       
@@ -176,7 +177,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
 #' 
 #' @export
 
-fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_size = 0.2) {
+fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_size = 0.2, family = 'gaussian') {
   require(glmnet)
   
   set.seed(123)  # For reproducibility
@@ -193,15 +194,16 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
   best_model <- NULL
   best_cv_error <- Inf
   final_model <- NULL
+  best_alpha <- NULL
   
   for (alpha in alphas) {
 
-    cvfit <- cv.glmnet(X_train, y_train, alpha = alpha, lambda = lambda, nfolds = nfolds) # Cross validation
+    cvfit <- cv.glmnet(X_train, y_train, alpha = alpha, lambda = lambda, nfolds = nfolds, family = family) # Cross validation
     
     lambda_best <- cvfit$lambda.min
     
     # Fit model using best lambda
-    model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best)
+    model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best, family = family)
     
     # Predict on test set
     y_pred <- predict(model, newx = X_test)
@@ -213,9 +215,10 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
     if (cv_error < best_cv_error) {
       best_model <- model
       best_cv_error <- cv_error
+      best_alpha <- alpha
     }
     
-    final_model <- glmnet(X, y, alpha = best_model$alpha, lambda = best_model$lambda)
+    final_model <- glmnet(X, y, alpha = best_alpha, lambda = best_model$lambda)
     
   }
   
@@ -249,7 +252,7 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
 #' 
 #' @export
 
-fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5,  test_size = 0.2) {
+fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5,  test_size = 0.2,family = 'binomial') {
   require(glmnet)
   
   set.seed(123)  # For reproducibility
@@ -266,6 +269,7 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
   best_model <- NULL
   best_cv_error <- Inf
   final_model <- NULL
+  best_alpha <- NULL
   
   for (alpha in alphas) {
     
@@ -287,9 +291,10 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     if (cv_error < best_cv_error) {
       best_model <- model
       best_cv_error <- cv_error
+      best_alpha <- alpha
     }
     
-    final_model <- glmnet(X, y, alpha = best_model$alpha, 
+    final_model <- glmnet(X, y, alpha = best_alpha, 
                           lambda = best_model$lambda, family = 'binomial')
     
   }

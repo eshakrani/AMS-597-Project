@@ -156,3 +156,74 @@ svm_model <- function(X, y, type = "C", kernel = "radial", cost = 1) {
 }
 
 ##################################### 
+# Top K with Bagging and Lasso Regression
+# Use bagging to fit multiple lasso regression models on bootstrap samples of the data. 
+# Then, we combine the coefficients from these models and select the top K predictors based on their average coefficient magnitudes
+# We rank the predictors based on their average coefficient magnitudes and select the top K predictors
+bagged_lasso <- function(X, y, num_models = 100) {
+  n <- nrow(X)
+  p <- ncol(X)
+  coefficients <- matrix(0, nrow = p, ncol = num_models)
+  
+  for (i in 1:num_models) {
+    indices <- sample(1:n, replace = TRUE) # Sample with replacement
+    X_boot <- X[indices, ]
+    y_boot <- y[indices]
+    
+    # Lasso
+    model <- glmnet(X_boot, y_boot, alpha = 1)
+    coefficients[, i] <- coef(model)[-1]  # Don't need intercept
+  }
+  
+  return(coefficients)
+}
+
+# Function to select top K predictors based on coefficient magnitudes
+top_K_predictors <- function(coefficients, K) {
+  avg_coefficients <- apply(coefficients, 1, mean)
+  top_K_indices <- order(abs(avg_coefficients), decreasing = TRUE)[1:K]
+  return(top_K_indices)
+}
+#####################################################
+##########################################
+#Bagging for linear, logistic,  ridge, lasso , and elastic net
+#Can change for each regression 
+# final_predictions <- bagging_regression(X, y, model_func = lm)
+# final_predictions <- bagging_regression(X, y, model_func = glm)
+# final_predictions <- bagging_regression(X, y, model_func = ridge_regression_glmnet)
+# NOTE: Might need to adjust for the main function because of layout 
+
+
+# Steps: 
+# 1. Sample with replacement from the dataset to create multiple bootstrap samples.
+# 2. Fit the chosen regression model to each bootstrap sample.
+# 3. Predict the outcomes for each model.
+# 4. Average the predictions across all models to obtain the final prediction. (Soft Voting)
+# 5. Count the number of times each variable is selected in the bagging process. Variables that are selected more frequently are considered more important.
+
+# Function to perform bagging for regression models and calculate variable importance score
+#NOTE: Might need to adjust for the main function because of layout and naive score, needs to be adjusted  
+bagging_and_variable_importance <- function(X, y, model_func, num_models = 100) {
+  n <- nrow(X)
+  predictions <- matrix(0, nrow = n, ncol = num_models)
+  naive <- rep(0, ncol(X))
+  
+  for (i in 1:num_models) {
+    indices <- sample(1:n, replace = TRUE) #Sample with replacement
+    X_boot <- X[indices, ]
+    y_boot <- y[indices]
+    
+    model <- model_func(X_boot, y_boot)
+    
+    
+    predictions[, i] <- predict(model, newdata = X)
+    
+    naive <- naive + as.numeric(coef(model) != 0)
+  }
+  
+  # Average predictions across all models (Soft Voting)
+  final_predictions <- rowMeans(predictions)
+  
+  
+  return(list(predictions = final_predictions, naive = naive))
+}

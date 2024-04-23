@@ -100,6 +100,22 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     #' when the data is highly skewed/imbalanced on the classification side 
     #' to weight the models that predict the in balanced category better more heavily. 
     
+    if (ensemble & family == 'gaussian') {
+      
+      # Going to perform Stacking
+      # will take the predicted values from linear regression
+      # fitted on X and having SVM fit onto [X,y^]
+      # return that SVM model
+      
+    }
+    
+    else if (ensemble & family == 'binomial') {
+      # Going to perform Stacking
+      # will take the predicted values from logistic regression
+      # fitted on X and having SVM fit onto [X,y^]
+      # return that SVM model
+    }
+    
     if (family == 'gaussian') {
       
       y_pred_avg <- rep(0,length(y))
@@ -141,6 +157,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
       return(y_pred_avg)
       
     }
+    
   }
 }
 

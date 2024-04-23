@@ -42,10 +42,6 @@ checkAssumptions <- function(family, measure, lambda, alpha, bagging, topP, K, e
   if (!is.logical(bagging) || !is.logical(topP) || !is.logical(ensemble) || !is.logical(cv)) 
     stop("bagging, topP, ensemble, and cv parameters must be logical.")
   
-  # Check lambda and alpha
-  if (cv) 
-    if (nfolds < 2 | !is.integer(nfolds))
-      stop("Number of folds must be a positive integer greater than 2 when cv is choosen.")
   
   # Check if K is numeric and greater than 1
   if (K %% 1 != 0 | K < 1) {

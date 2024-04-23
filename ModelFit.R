@@ -1,6 +1,7 @@
 library(glmnet)
 
 
+#' 
 #' @param X Input matrix of co-variates, n by p.
 #' @param y Response vector, n by 1.
 #' @param family Output distribution of the y vector (gaussian or binomial)
@@ -11,15 +12,15 @@ library(glmnet)
 #' @param topP Indicating whether to perform feature pre screening
 #' @param K Number of top predictors to use.
 #' @param ensemble Logical indicating whether to use ensemble learning.
-#' @param cv Logical indicating whether to perform cross-validation. Only for non ensemble learning.
 #' @param nfolds controls the number of folds for cross validated models
 #' @param test_size controls the test set size for model selection in cross validated models
 #' @param R Number of iterations for bootstrap
 #' 
+#' @example  
 #' 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
-                     K = 10, ensemble = FALSE, cv = FALSE, nfolds = 5, test_size = 0.2,
+                     K = 10, ensemble = FALSE, nfolds = 5, test_size = 0.2,
                      R = 100) {
 
   
@@ -29,7 +30,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   
   checkAssumptions(family = family, measure = measure, lambda = lambda, alpha = alpha
                    , bagging = bagging, topP = topP, K = K, ensemble = ensemble
-                   , cv = cv, R = R)
+                   , R = R)
   # Check assumptions was having issues, will fix later.
   
   if (identical(family, c("gaussian","binomial"))) {
@@ -41,8 +42,8 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     measure <- measure[1]
   }
   
-  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble, 
-                   cv, nfolds, test_size, R)
+  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble
+                   , nfolds, test_size, R)
   
   
   if (topP) {
@@ -74,27 +75,17 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     else if (family == 'gaussian') {
       
       # If cross validation use the below Regression function
-      if (cv) 
-        model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
+      model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
                                     nfolds = nfolds, test_size = test_size)
       
-      else {
-        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = 'gaussian')
-      }
-        
       return(model)  
       
-      # If not cross validation uses tony's functions to return a specific
-      # version of linear regression (OLS,lasso,ridge)
     }
     
     else if (family == 'binomial') {
       
-      if (cv) 
-        model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
+      model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
                                          nfolds = nfolds, test_size = test_size)
-      else
-        model <- glmnet(X,y,alpha = alpha, lambda = lambda, family = 'binomial')
   
       return(model)    
     }

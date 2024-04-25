@@ -237,3 +237,192 @@ ethanol
 str(ethanol)
 bagging_and_variable_importance(X = ethanol[, -3], y = ethanol$E, model_func = lm, num_models = 100)
 
+############################
+#Ensemble - Stacking 
+#https://medium.com/@brijesh_soni/stacking-to-improve-model-performance-a-comprehensive-guide-on-ensemble-learning-in-python-9ed53c93ce28
+#Steps: 
+# 1. Split the training dataset into two parts: training and test
+# 2. Train several base models on the training data
+# 3. Make predictions using the base models on the hold-out validation data
+# 4. Train the meta-model on the hold-out validation data using the predictions from the base models as input features
+# 5. To make a prediction for new data
+
+library(randomForest)
+final_predictions <- c()
+split_data <- function(X, y, test_size = 0.2, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  n <- nrow(X)
+  n_test <- as.integer(n * test_size)
+  test_indices <- sample(1:n, n_test)
+  train_indices <- setdiff(1:n, test_indices)
+
+  X_train <- X[train_indices, , drop = FALSE]
+  y_train <- y[train_indices]
+  X_test <- X[test_indices, , drop = FALSE]
+  y_test <- y[test_indices]
+
+  return(list(X_train = X_train, y_train = y_train, X_test = X_test, y_test = y_test))
+}
+# Ensemble_stacking function
+ensemble_stacking <- function(X_train, y_train, X_test, models) {
+  # Fit base models
+  base_model_predictions <- lapply(models, function(model) {
+    if (inherits(model, "lm") || inherits(model, "glm")) {
+      predict(model, newdata = as.data.frame(X_train))
+    } else if (inherits(model, "randomForest")) {
+      predict(model, newdata = X_train)
+    } else {
+      stop("Unsupported model type.")
+    }
+  })
+
+  # Combine predictions into a data frame
+  base_model_predictions <- as.data.frame(do.call(cbind, base_model_predictions))
+
+  # Train meta-learner (e.g., linear regression) on base model predictions
+  meta_learner <- lm(y_train ~ ., data = base_model_predictions)
+
+  # Generate predictions from base models for test data
+  base_model_predictions_test <- lapply(models, function(model) {
+    if (inherits(model, "lm") || inherits(model, "glm")) {
+      predict(model, newdata = as.data.frame(X_test))
+    } else if (inherits(model, "randomForest")) {
+      predict(model, newdata = X_test)
+    } else {
+      stop("Unsupported model type.")
+    }
+  })
+
+  # Combine predictions into a data frame
+  base_model_predictions_test <- as.data.frame(do.call(cbind, base_model_predictions_test))
+
+  # Make final predictions using meta-learner
+  final_predictions <- predict(meta_learner, newdata = base_model_predictions_test)
+
+  return(final_predictions)
+}
+#######################
+# Example usage - EMSABLE STACKING 
+set.seed(123)
+n <- 100
+p <- 5
+X <- matrix(rnorm(n * p), nrow = n, ncol = p)
+y <- rnorm(n)
+
+# Split data into training and testing sets
+data_split <- split_data(X, y, test_size = 0.2, seed = 123)
+X_train <- data_split$X_train
+y_train <- data_split$y_train
+X_test <- data_split$X_test
+
+# Fit base models
+model_lm <- lm(y_train ~ ., data = as.data.frame(X_train))
+model_rf <- randomForest(x = X_train, y = y_train)
+model_glm <- glm(y_train ~ ., data = as.data.frame(X_train), family = gaussian)
+
+# Use ensemble stacking
+models <- list(model_lm, model_rf, model_glm)
+ensemble_stacking(X_train, y_train, X_test, models)
+
+
+
+######################################
+#Esamble  
+# Define X and y
+X <- ethanol[, -1]  # Excluding the first column (NOx) as it's the target variable
+y <- ethanol$NOx
+
+# Split the data into training and testing sets
+data_split <- split_data(X, y, test_size = 0.2, seed = 123)
+X_train <- data_split$X_train
+y_train <- data_split$y_train
+X_test <- data_split$X_test
+y_test <- data_split$y_test
+
+# Fit base models
+model_lm <- lm(y_train ~ ., data = as.data.frame(X_train))
+model_rf <- randomForest(x = X_train, y = y_train)
+
+# Use ensemble stacking
+models <- list(model_lm, model_rf)
+ensemble_stacking(X_train, y_train, X_test, models)
+
+######
+# Fit base models
+model_lm <- lm(y ~ ., data = as.data.frame(X))
+model_rf <- randomForest(x = X, y = y)
+
+# Use ensemble stacking
+models <- list(model_lm, model_rf)
+ensemble_stacking(X, y, X, models)
+
+
+##############################################################################
+# Ensemble - Using Stacking from https://medium.com/@brijesh_soni/stacking-to-improve-model-performance-a-comprehensive-guide-on-ensemble-learning-in-python-9ed53c93ce28
+
+stacked_ensemble_and_aggregate <- function(data, folds, base_models) {
+  stacked_predictions_list <- list()
+  
+  for (i in 1:length(folds)) {
+    valid_data <- data[folds[[i]]$test, ]
+    train_data <- data[unlist(folds[-i], use.names = FALSE), ]
+    
+    # Train base models
+    base_model_predictions <- lapply(base_models, function(model) {
+      predict(model, newdata = valid_data)
+    })
+    
+    # Combine predictions into meta-model input
+    input_meta_model <- data.frame(do.call(cbind, base_model_predictions), Rings = valid_data$Rings)
+    
+    # Train the meta-model based on stacked outputs of base models 
+    stacked_model <- lm(Rings ~ ., data = input_meta_model)
+    
+    # Make predictions on test data
+    test_base_model_predictions <- lapply(base_models, function(model) {
+      predict(model, newdata = data)
+    })
+    stacked_model_input <- data.frame(do.call(cbind, test_base_model_predictions), Rings = data$Rings)
+    stacked_predictions <- predict(stacked_model, newdata = stacked_model_input)
+    
+    # Store stacked predictions in the list
+    stacked_predictions_list[[i]] <- stacked_predictions
+  }
+  
+  # Initialize a list to store aggregated predictions
+  aggregated_predictions <- list()
+  
+  # Average predictions across folds
+  for (i in 1:length(stacked_predictions_list[[1]])) {
+    instance_predictions <- sapply(stacked_predictions_list, function(predictions) predictions[i])
+    avg_prediction <- mean(instance_predictions)
+    aggregated_predictions[[i]] <- avg_prediction
+  }
+  
+  # Convert aggregated predictions to a vector
+  aggregated_predictions_vector <- unlist(aggregated_predictions)
+  
+  return(aggregated_predictions_vector)
+}
+
+
+data(abalone)
+
+abalone <- head(abalone, 100)
+library(caret)
+library(randomForest)
+# Create folds for cross-validation
+folds <- createFolds(abalone$Rings, k = 10, list = TRUE)
+
+lm_model <- lm(Rings ~ ., data = abalone)
+svm_model <- svm(Rings ~ ., data = abalone, method = "Regression", kernel = "radial", gamma = 0.1, cost = 10)
+tree_model <- rpart(formula = as.formula("Rings ~ ."), data = abalone)
+randomf_model <- randomForest( x = abalone[, -1 ], y = abalone$Rings  )
+
+
+
+
+base_models <- list(lm_model, svm_model, tree_model)
+
+stacked_ensemble_and_aggregate(abalone, folds, base_models)
+

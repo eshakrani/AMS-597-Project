@@ -1,5 +1,19 @@
-train_meta_learner_regression <- function(model_names, meta_model_name, X, y, alphas, lambda = NULL, ...) {
-  # Load necessary libraries
+#' Train Meta Learner for Binary Classification and Regression
+#'
+#' This function trains a meta learner for regression using specified base models.
+#' It performs hyperparameter tuning for each base model and combines their predictions to train the meta learner.
+#' Training and tuning is done with glmnet, e1071 and the randomForest package.
+#'
+#' @param model_names A character vector specifying the base models to use. Currently supported models are "svm" and "randomForest".
+#' @param meta_model_name A character string specifying the type of meta learner to use. Currently supported options are "glm", "svm", or "randomForest".
+#' @param X A matrix or data frame containing the predictor variables.
+#' @param y A numeric vector or factor containing the target variable.
+#' @param alphas A numeric scalar/vector specifying the alpha values for elastic net regularization (only applicable when meta_model_name = "glm").
+#' @param lambda A numeric scalar/vector specifying the lambda value for regularization (only applicable when meta_model_name = "glm").
+#'
+#' @return An object representing the trained meta learner.
+
+train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambda = NULL) {
   library(randomForest)
   library(e1071)
   
@@ -7,9 +21,6 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   if (!is.character(model_names)) {
     stop("'model_names' argument must be a character vector of model names.")
   }
-  
-  # Combine X and y into a data frame
-  data <- data.frame(X, y)
   
   # Initialize variables to store best models and their predictions
   best_svm_model <- NULL
@@ -19,16 +30,15 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   
   # Function for SVM hyperparameter tuning
   tune_svm <- function(train_x, train_y, ...) {
-    # Perform grid search for SVM
+    
     svm_tuned <- tune(svm, train.x = train_x, train.y = train_y, ...)
-    # Select best model
     best_svm <- svm_tuned$best.model
+    
     return(best_svm)
   }
   
   # Function for random forest hyper parameter tuning and fitting the best model
   tune_rf <- function(train_data, train_target, ...) {
-    # Perform grid search for random forest
     
     rf_tuned <- tuneRF(x = train_data, y = train_target, plot = F, trace = F, doBest = T)
     
@@ -67,6 +77,7 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   newX <- NULL
   
   if ("svm" %in% model_names & "randomForest" %in% model_names) {
+    # To avoid recursive stack issues concatenate the average of outputs between the two predictors.
     newX <- cbind(X, (as.integer(best_svm_predictions) +  as.integer(best_rf_predictions)) / 2)
   } else if ("svm" %in% model_names ) {
     # Only SVM model was used
@@ -138,6 +149,4 @@ meta_trained <- train_meta_learner_regression(model_names = c("svm","randomFores
                                    cv_folds = 5,
                                    lambda = NULL,
                                    alphas = c(0.5))
-
-meta_trained
 

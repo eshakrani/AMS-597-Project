@@ -274,8 +274,9 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
   X_test <- X[-train_indices, ]
   y_test <- y[-train_indices]
   
+  # Set best_cv_error to be -inf, since we want the highest AUC.
   best_model <- NULL
-  best_cv_error <- Inf
+  best_cv_error <- -Inf
   final_model <- NULL
   best_alpha <- NULL
   
@@ -295,8 +296,19 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     # Predict on test set
     #y_pred <- predict(model, newx = X_test)
     
+    # More info: https://www.geeksforgeeks.org/how-to-calculate-auc-area-under-curve-in-r/
+    # AUC is between 0 and 1, highest is better.
+    
+    install.packages("pROC")
+    library(pROC)
+    
+    y_pred = predict(model, newx = X_test)
+    roc_object = roc(Y_test, y_pred)
+    cv_error = auc(roc_object)
+    
     # Update best model if current model has lower error
-    if (cv_error < best_cv_error) {
+    # Need to check if current AUC is higher than best AUC
+    if (cv_error > best_cv_error) {
       best_model <- model
       best_cv_error <- cv_error
       best_alpha <- alpha

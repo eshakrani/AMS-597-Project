@@ -20,8 +20,9 @@ library(glmnet)
 #' 
 modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
-                     K = 10, ensemble = FALSE, nfolds = 5, test_size = 0.2,
-                     R = 100) {
+                     K = 10, ensemble = FALSE, models_list = c("svm","randomForest"),
+                     meta_learner = c("glm","svm","randomForest"), nfolds = 5, 
+                     test_size = 0.2, R = 100) {
 
   
   data <- checkData(X,y)
@@ -55,39 +56,38 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   }
   
   if (!bagging) {
-    if (ensemble & family == 'gaussian') {
-      
-      # Going to perform Stacking
-      # will take the predicted values from linear regression
-      # fitted on X and having SVM fit onto [X,y^]
-      # return that SVM model
-      
-    }
-    
-    else if (ensemble & family == 'binomial') {
-      # Going to perform Stacking
-      # will take the predicted values from logistic regression
-      # fitted on X and having SVM fit onto [X,y^]
-      # return that SVM model
+    if (ensemble) {
+      model <- train_meta_learner(models_list, meta_learner, X, y, alphas, lambda)
+      return(model)
     }
     
     
     else if (family == 'gaussian') {
       
-      # If cross validation use the below Regression function
-      model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
+      if (length(alpha) == 1 & length(lambda) == 1) {
+        model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best, family = family)
+        return(model)
+      }
+      else {
+        model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
                                     nfolds = nfolds, test_size = test_size)
-      
-      return(model)  
+        return(model)
+      }
       
     }
     
     else if (family == 'binomial') {
       
-      model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
+      if (length(alpha) == 1 & length(lambda) == 1) {
+        model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best, family = family)
+        return(model)
+      }
+      
+      else {
+        model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
                                          nfolds = nfolds, test_size = test_size)
-  
-      return(model)    
+        return(model)    
+      }
     }
   
   }
@@ -99,22 +99,6 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     #' one possibility is to a uniform weighting. Another is to have an option
     #' when the data is highly skewed/imbalanced on the classification side 
     #' to weight the models that predict the in balanced category better more heavily. 
-    
-    if (ensemble & family == 'gaussian') {
-      
-      # Going to perform Stacking
-      # will take the predicted values from linear regression
-      # fitted on X and having SVM fit onto [X,y^]
-      # return that SVM model
-      
-    }
-    
-    else if (ensemble & family == 'binomial') {
-      # Going to perform Stacking
-      # will take the predicted values from logistic regression
-      # fitted on X and having SVM fit onto [X,y^]
-      # return that SVM model
-    }
     
     if (family == 'gaussian') {
       
@@ -144,12 +128,11 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
-        # needs to be changed to matchthe gaussian version.
+
         model <- cv.glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
 
         y_pred <- predict(model, newx = X, type = 'response')
         y_pred_avg <- y_pred_avg + 1/R * y_pred
-        
         
         
       }

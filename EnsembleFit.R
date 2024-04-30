@@ -16,7 +16,8 @@
 train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambda = NULL) {
   library(randomForest)
   library(e1071)
-  
+  library(mlr)
+  print(y)
   # Check if model_names is a character vector
   if (!is.character(model_names)) {
     stop("'model_names' argument must be a character vector of model names.")
@@ -31,7 +32,7 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   # Function for SVM hyperparameter tuning
   tune_svm <- function(train_x, train_y) {
     
-    svm_tuned <- tune(svm, train.x = train_x, train.y = train_y)
+    svm_tuned <- tune(svm,train.x = train_x, train.y = train_y, ranges = list(cost = 10^(-2:2), gamma = 2^(-5:5)))
     best_svm <- svm_tuned$best.model
     
     return(best_svm)
@@ -39,10 +40,10 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   
   # Function for random forest hyper parameter tuning and fitting the best model
   tune_rf <- function(train_data, train_target) {
+    rf_model <- randomForest(x = train_data, y = train_target)
+  
     
-    rf_tuned <- tuneRF(x = train_data, y = train_target, plot = F, trace = F, doBest = T)
-    
-    return(rf_tuned)
+    return(rf_model)
   }
   
   # Iterate through model_names
@@ -53,7 +54,6 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
     if (model_name == "svm") {
       # Hyperparameter tuning for SVM
       best_svm_model <- tune_svm(train_x = X, train_y = y)
-      
       # Predict using the best SVM model
       best_svm_predictions <- predict(best_svm_model, X)
       
@@ -90,9 +90,9 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   }
   
   # Train the meta learner using the concatenated data
-  if (meta_model_name == "glm" & !is.factor(y)) {
+  if (meta_model_name == "glm" & !all(sapply(y, is.factor))) {
     meta_trained <- fitLinearRegressor(as.matrix(newX), y, alphas = alphas, lambda = lambda, family = 'gaussian')
-  } else if (meta_model_name == "glm" & is.factor(y)) {
+  } else if (meta_model_name == "glm" & all(sapply(y, is.factor))) {
     meta_trained <- fitLogisticRegressor(as.matrix(newX), y, alphas = alphas, lambda = lambda, family = 'gaussian')
   } else if (meta_model_name == "svm") {
     meta_trained <- tune_svm(train_x = newX, train_y = y)
@@ -105,48 +105,3 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   return(meta_trained)
 }
 
-
-
-
-# Set seed for reproducibility
-set.seed(123)
-
-head(iris)
-# Generate predictor variables
-X <- iris[, -c(5)]  # Excluding the third and fourth columns
-y <- iris[, 5]  # Creating a binary target variable
-# Display the first few rows of the dataset
-
-y_mapped <- ifelse(y == levels(y)[1], 0, 1)
-
-# Convert to factor
-y_mapped <- factor(y_mapped)
-print(y_mapped)
-
-str(X)
-str(y)
-
-
-set.seed(123)
-n <- 100  # Number of samples
-
-# Generate predictors
-X1 <- rnorm(n)
-X2 <- rnorm(n)
-
-# Generate binary target variable
-y <- X1 - 2 + X2 * 0.3
-
-# Combine predictors and target into a data frame
-binary_data <- data.frame(X1, X2, y)
-
-
-# Train the meta learner using model names and custom X, y
-meta_trained <- train_meta_learner(model_names = c("svm","randomForest"), 
-                                   meta_model_name = "svm", 
-                                   X = binary_data[,-3], 
-                                   y = binary_data[,3],
-                                   lambda = NULL,
-                                   alphas = c(0.5))
-
-meta_trained

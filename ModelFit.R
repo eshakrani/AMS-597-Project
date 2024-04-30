@@ -27,10 +27,10 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   data <- checkData(X,y)
   X <- data[,-1]
   y <- data[,1]
-  
+
   checkAssumptions(family = family, lambda = lambda, alpha = alpha
                    , bagging = bagging, topP = topP, K = K, ensemble = ensemble
-                   , R = R)
+                   , R = R, meta_learner = meta_learner)
   # Check assumptions was having issues, will fix later.
   
   if (identical(family, c("gaussian","binomial"))) {
@@ -49,7 +49,10 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   
   if (!bagging) {
     if (ensemble) {
-      model <- train_meta_learner(models_list, meta_learner, X, y, alphas, lambda)
+      if(length(unique(y)) == 2)
+        y <- factor(y)
+      
+      model <- train_meta_learner(models_list, meta_learner, X = X, y = y, alpha, lambda)
       return(model)
     }
     
@@ -74,7 +77,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     }
     
     else if (family == 'binomial') {
-      
+      y <- factor(y)
       if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
         
         model <- glm(y ~ X, family = family)
@@ -96,73 +99,94 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   }
   
   if (bagging) {
-    
-    #' The bagging procedure is simple, only implement for the regression models
-    #' For the weight on the bagging procedure to get the final prediction
-    #' one possibility is to a uniform weighting. Another is to have an option
-    #' when the data is highly skewed/imbalanced on the classification side 
-    #' to weight the models that predict the in balanced category better more heavily. 
-    
     if (family == 'gaussian') {
-      
-      y_pred_avg <- rep(0,length(y))
-      y_pred <- NULL
+      y_pred_avg <- rep(0, length(y))
+      naive_score <- matrix(rep(0,ncol(X) + 1),nrow = 1, ncol = ncol(X) + 1)
+      colnames(naive_score) <- c("Intercept",colnames(X))
       
       for (i in 1:R) {
-        id <- sample(1:nrow(X), nrow(X), replace = T)
-        
+        id <- sample(1:nrow(X), nrow(X), replace = TRUE)
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
-        
-        if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
-          model <- lm(y ~ X)
-          y_pred <- predict(model, newdata = data.frame(X))
-          y_pred_avg <- y_pred_avg + 1/R * y_pred
-          next
+        model <- NULL
+        if ((length(alpha) == 1 | is.null(alpha)) & length(lambda) == 1) {
+          if (lambda == 0) {
+            model <- lm(y_bootstrap ~ X_bootstrap)
+            y_pred <- predict(model, newdata = data.frame(X))
+            y_pred_avg <- y_pred_avg + 1/R * y_pred
+            non_zero_coeffs <- which(coef(model) != 0)
+            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+            
+            next
+          }
+          else {
+            model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+            y_pred <- predict(model, newx = X, type = 'response',s = lambda)
+            y_pred_avg <- y_pred_avg + 1/R * y_pred
+            
+            non_zero_coeffs <- which(coef(model, s = lambda) != 0)
+            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+            }
         }
-        
-        else if (length(alpha) == 1 & length(lambda) == 1) 
-          model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
-        else
-          model <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-        y_pred <- predict(model, newx = X)
-        y_pred_avg <- y_pred_avg + 1/R * y_pred
-        
+        else {
+          results <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+          y_pred <- predict(results$model, newx = X, s = results$lambda)
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          
+          non_zero_coeffs <- which(coef(results$model, s = results$lambda) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+        }
+
       }
-      
-      return(y_pred_avg)
-  
-    
+      return(list(y_pred_avg = y_pred_avg, naive_score = naive_score))
     }
     
     if (family == 'binomial') {
+      y <- factor(y)
+      y_pred_avg <- rep(0, length(y))
+      naive_score <- matrix(rep(0,ncol(X) + 1),nrow = 1, ncol = ncol(X) + 1)
+      colnames(naive_score) <- c("Intercept",colnames(X))
       
       for (i in 1:R) {
-        id <- sample(1:nrow(X), nrow(X), replace = T)
-        
+        id <- sample(1:nrow(X), nrow(X), replace = TRUE)
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
-
-        if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) 
-          model <- glm(y ~ X, family = family)
-      
-        else if (length(alpha) == 1 & length(lambda) == 1) 
-          model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
+        model <- NULL
         
-        else
-          model <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-
-        y_pred <- predict(model, newx = X, type = 'response')
-        y_pred_avg <- y_pred_avg + 1/R * y_pred
-        
+        if ((length(alpha) == 1 | is.null(alpha)) & length(lambda) == 1) {
+          if (lambda == 0) {
+            model <- glm(y_bootstrap ~ X_bootstrap, family = family)
+            y_pred <- predict(model, newdata = data.frame(X), type = 'response')
+            y_pred_avg <- y_pred_avg + 1/R * y_pred
+            non_zero_coeffs <- which(coef(model) != 0)
+            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+          
+            next
+          }
+          else {
+            model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+            y_pred <- predict(model, newx = X, type = 'response',s = lambda)
+            y_pred_avg <- y_pred_avg + 1/R * y_pred
+            
+            non_zero_coeffs <- which(coef(model, s = lambda) != 0)
+            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+          }
+        }
+        else {
+          results <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+          y_pred <- predict(results$model, newx = X, type = 'response',s = results$lambda)
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          
+          non_zero_coeffs <- which(coef(results$model, s = results$lambda) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+        }
         
       }
       
-      return(y_pred_avg)
-      
+      return(list(y_pred_avg = y_pred_avg, naive_score = naive_score))
+      }
     }
     
-  }
 }
 
 #' @name 
@@ -234,7 +258,7 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
     
   }
   
-  return(final_model)
+  return(list(model = final_model, lambda = best_model$lambda))
 }
 
 
@@ -303,18 +327,12 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     # More info: https://www.geeksforgeeks.org/how-to-calculate-auc-area-under-curve-in-r/
     # AUC is between 0 and 1, higher is better.
     
-    install.packages("pROC")
-    library(pROC)
-    
-    y_pred = predict(model, newx = X_test)
-    roc_object = roc(Y_test, y_pred)
+    y_pred = predict(model, newx = X_test, response = 'class')
+    roc_object = roc(y_test, y_pred)
     auc = auc(roc_object)
     
-    # Update best model if current model has lower error
-    # Need to check if current AUC is higher than best AUC
     if (auc > best_auc) {
       best_model <- model
-      #best_cv_error <- cv_error
       best_auc = auc
       best_alpha <- alpha
     }
@@ -324,5 +342,6 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     
   }
   
-  return(final_model)
+  return(list(model = final_model, lambda = best_model$lambda))
 }
+

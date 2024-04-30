@@ -29,16 +29,16 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   best_rf_predictions <- NULL
   
   # Function for SVM hyperparameter tuning
-  tune_svm <- function(train_x, train_y, ...) {
+  tune_svm <- function(train_x, train_y) {
     
-    svm_tuned <- tune(svm, train.x = train_x, train.y = train_y, ...)
+    svm_tuned <- tune(svm, train.x = train_x, train.y = train_y)
     best_svm <- svm_tuned$best.model
     
     return(best_svm)
   }
   
   # Function for random forest hyper parameter tuning and fitting the best model
-  tune_rf <- function(train_data, train_target, ...) {
+  tune_rf <- function(train_data, train_target) {
     
     rf_tuned <- tuneRF(x = train_data, y = train_target, plot = F, trace = F, doBest = T)
     
@@ -52,14 +52,14 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
     # Check if model is SVM or random forest
     if (model_name == "svm") {
       # Hyperparameter tuning for SVM
-      best_svm_model <- tune_svm(train_x = X, train_y = y, ...)
+      best_svm_model <- tune_svm(train_x = X, train_y = y)
       
       # Predict using the best SVM model
       best_svm_predictions <- predict(best_svm_model, X)
       
     } else if (model_name == "randomForest") {
       # Hyperparameter tuning for random forest
-      best_rf_model <- tune_rf(train_data = X, train_target = y, ...)
+      best_rf_model <- tune_rf(train_data = X, train_target = y)
       
       # Predict using the best Random Forest model
       best_rf_predictions <- predict(best_rf_model, X)
@@ -95,9 +95,9 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   } else if (meta_model_name == "glm" & is.factor(y)) {
     meta_trained <- fitLogisticRegressor(as.matrix(newX), y, alphas = alphas, lambda = lambda, family = 'gaussian')
   } else if (meta_model_name == "svm") {
-    meta_trained <- tune_svm(train_x = newX, train_y = y, ...)
+    meta_trained <- tune_svm(train_x = newX, train_y = y)
   } else if (meta_model_name == "randomForest") {
-    meta_trained <- tune_rf(train_data = newX, train_target = y, ...)
+    meta_trained <- tune_rf(train_data = newX, train_target = y)
   } else {
     stop("Invalid 'meta_model_name'. Choose from 'glm', 'svm', or 'randomForest'.")
   }
@@ -142,11 +142,11 @@ binary_data <- data.frame(X1, X2, y)
 
 
 # Train the meta learner using model names and custom X, y
-meta_trained <- train_meta_learner_regression(model_names = c("svm","randomForest"), 
-                                   meta_model_name = "glm", 
+meta_trained <- train_meta_learner(model_names = c("svm","randomForest"), 
+                                   meta_model_name = "svm", 
                                    X = binary_data[,-3], 
-                                   y = binary_data[,3], 
-                                   cv_folds = 5,
+                                   y = binary_data[,3],
                                    lambda = NULL,
                                    alphas = c(0.5))
 
+meta_trained

@@ -5,7 +5,6 @@ library(glmnet)
 #' @param X Input matrix of co-variates, n by p.
 #' @param y Response vector, n by 1.
 #' @param family Output distribution of the y vector (gaussian or binomial)
-#' @param measure 
 #' @param lambda Regularization parameter(s).
 #' @param alpha ElasticNet mixing parameter(s). 
 #' @param bagging Logical
@@ -18,7 +17,7 @@ library(glmnet)
 #' 
 #' @example  
 #' 
-modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","auc"), 
+modelFit <- function(X,y, family = c("gaussian","binomial"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
                      K = 10, ensemble = FALSE, models_list = c("svm","randomForest"),
                      meta_learner = c("glm","svm","randomForest"), nfolds = 5, 
@@ -29,7 +28,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
   X <- data[,-1]
   y <- data[,1]
   
-  checkAssumptions(family = family, measure = measure, lambda = lambda, alpha = alpha
+  checkAssumptions(family = family, lambda = lambda, alpha = alpha
                    , bagging = bagging, topP = topP, K = K, ensemble = ensemble
                    , R = R)
   # Check assumptions was having issues, will fix later.
@@ -38,13 +37,6 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     family <- family[1]
   }
   
-  # Automatically choose the first option if measure is left as default
-  if (identical(measure, c("mse","auc"))) {
-    measure <- measure[1]
-  }
-  
-  checkAssumptions(family, measure, lambda, alpha, bagging, topP, K, ensemble
-                   , nfolds, test_size, R)
   
   
   if (topP) {
@@ -64,10 +56,16 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     
     else if (family == 'gaussian') {
       
-      if (length(alpha) == 1 & length(lambda) == 1) {
-        model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best, family = family)
+      if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
+        
+        model <- lm(y ~ X)
         return(model)
       }
+      else if (length(alpha) == 1 & length(lambda) == 1) {
+        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
+        return(model)
+      }
+      
       else {
         model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
                                     nfolds = nfolds, test_size = test_size)
@@ -78,8 +76,14 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
     
     else if (family == 'binomial') {
       
-      if (length(alpha) == 1 & length(lambda) == 1) {
-        model <- glmnet(X_train, y_train, alpha = alpha, lambda = lambda_best, family = family)
+      if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
+        
+        model <- glm(y ~ X, family = family)
+        return(model)
+      }
+      
+      else if (length(alpha) == 1 & length(lambda) == 1) {
+        model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
         return(model)
       }
       
@@ -129,7 +133,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"), measure = c("mse","
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
 
-        model <- cv.glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+        model <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
 
         y_pred <- predict(model, newx = X, type = 'response')
         y_pred_avg <- y_pred_avg + 1/R * y_pred

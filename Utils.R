@@ -27,20 +27,16 @@ checkData <- function(X,y) {
   return(cbind(y,X))
 }
 
-checkAssumptions <- function(family, measure, lambda, alpha, bagging, topP, K, ensemble, cv,
+checkAssumptions <- function(family, lambda, alpha, bagging, topP, K, ensemble,
                              nfolds, test_size, R) {
   # Check if family is either 'gaussian' or 'binomial'
   if (!identical(family, 'gaussian') & !identical(family,'binomial')) 
     stop("Family parameter must be either 'gaussian' or 'binomial'")
-  
-  # Check if measure is either 'mse' or 'auc'
-  #if (!(measure %in% c("mse", "auc"))) {
-  #  stop("Measure parameter must be either 'mse' or 'auc'")
-  #}
+
   
   # Check if bagging, topP, ensemble, and cv are logical
-  if (!is.logical(bagging) || !is.logical(topP) || !is.logical(ensemble) || !is.logical(cv)) 
-    stop("bagging, topP, ensemble, and cv parameters must be logical.")
+  if (!is.logical(bagging) || !is.logical(topP) || !is.logical(ensemble)) 
+    stop("bagging, topP, and ensemble parameters must be logical.")
   
   
   # Check if K is numeric and greater than 1

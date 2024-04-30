@@ -46,4 +46,7 @@ checkAssumptions <- function(family, lambda, alpha, bagging, topP, K, ensemble,
   
   if (R %% 1 != 0 | R < 1) 
     stop("(R) Number of boostraps must be a positive integer.")
+  
+  #if (bagging & length(lambda) < 2)
+  #  stop("Bagging is done with cv.glmnet to search for best hyperparameters. Enter more than 1 lambda value.")
 }

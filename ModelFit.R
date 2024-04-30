@@ -57,7 +57,6 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     else if (family == 'gaussian') {
       
       if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
-        
         model <- lm(y ~ X)
         return(model)
       }
@@ -107,13 +106,25 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     if (family == 'gaussian') {
       
       y_pred_avg <- rep(0,length(y))
+      y_pred <- NULL
+      
       for (i in 1:R) {
         id <- sample(1:nrow(X), nrow(X), replace = T)
         
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
         
-        model <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+        if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
+          model <- lm(y ~ X)
+          y_pred <- predict(model, newdata = data.frame(X))
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          next
+        }
+        
+        else if (length(alpha) == 1 & length(lambda) == 1) 
+          model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
+        else
+          model <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
         y_pred <- predict(model, newx = X)
         y_pred_avg <- y_pred_avg + 1/R * y_pred
         
@@ -126,14 +137,20 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     if (family == 'binomial') {
       
-      y_pred_avg <- rep(0,length(y))
       for (i in 1:R) {
         id <- sample(1:nrow(X), nrow(X), replace = T)
         
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
 
-        model <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+        if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) 
+          model <- glm(y ~ X, family = family)
+      
+        else if (length(alpha) == 1 & length(lambda) == 1) 
+          model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
+        
+        else
+          model <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
 
         y_pred <- predict(model, newx = X, type = 'response')
         y_pred_avg <- y_pred_avg + 1/R * y_pred

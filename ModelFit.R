@@ -60,11 +60,11 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     else if (family == 'gaussian') {
       
-      if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
+      if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
         model <- lm(y ~ X)
         return(model)
       }
-      else if (length(alpha) == 1 & length(lambda) == 1) {
+      else if (!is.null(alpha) && !is.null(lambda) && length(alpha) == 1) {
         model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
         return(model)
       }
@@ -79,13 +79,13 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     else if (family == 'binomial') {
       y <- factor(y)
-      if (length(alpha) == 1 & length(lambda) == 1 & lambda == 0) {
+      if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
         
         model <- glm(y ~ X, family = family)
         return(model)
       }
       
-      else if (length(alpha) == 1 & length(lambda) == 1) {
+      else if (!is.null(lambda) && !is.null(alpha) && length(alpha) == 1 && length(lambda) == 1) {
         model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
         return(model)
       }
@@ -110,7 +110,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
         model <- NULL
-        if ((length(alpha) == 1 | is.null(alpha)) & length(lambda) == 1) {
+        if (!is.null(alpha) && !is.null(lambda) && length(alpha) == 1) {
           if (lambda == 0) {
             model <- lm(y_bootstrap ~ X_bootstrap)
             y_pred <- predict(model, newdata = data.frame(X))
@@ -156,7 +156,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
         y_bootstrap <- y[id]
         model <- NULL
         
-        if ((length(alpha) == 1 | is.null(alpha)) & length(lambda) == 1) {
+        if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && length(alpha)) {
           if (lambda == 0) {
             model <- glm(y_bootstrap ~ X_bootstrap, family = family)
             y_pred <- predict(model, newdata = data.frame(X), type = 'response')

@@ -50,7 +50,7 @@ checkAssumptions <- function(family, lambda, alpha, bagging, topP, K, ensemble,
         stop("All lambda values must be greater than or equal to 0.")
   
   
-  if (length(alpha) == 1 && lambda != 0 && is.null(alpha)) {
+  if (is.null(alpha) && lambda != 0) {
     stop("Alpha can only be null if lambda is 0.")
   }
   

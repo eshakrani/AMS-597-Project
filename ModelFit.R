@@ -41,7 +41,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   
   if (topP) {
 
-    covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = alpha, lambda = lambda
+    covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = 1, lambda = lambda
                                      , test_size = test_size, R = 100, K = K)
     cat("The top covariates found are: ", covariates_list$top_covariates)
 

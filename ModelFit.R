@@ -40,11 +40,12 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   
   
   if (topP) {
-    # Select top K predictors to be the X matrix
-    # Create lambda max * epsilon
-    # fit lasso regression with bagging
-    # calculate the proportion of times feature i appears
-    # pick the top K
+
+    covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = alpha, lambda = lambda
+                                     , test_size = test_size, R = 100, K = K)
+    cat("The top covariates found are: ", covariates_list$top_covariates)
+
+    X <- X[,covariates_list$top_covariates]
   }
   
   if (!bagging) {
@@ -129,8 +130,10 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
             }
         }
         else {
-          results <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-          y_pred <- predict(results$model, newx = X, s = results$lambda)
+          results <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha,
+                                        lambda = lambda, family = family, test_size = test_size)
+          
+          y_pred <- predict(results$model, newx = as.matrix(X), s = results$lambda)
           y_pred_avg <- y_pred_avg + 1/R * y_pred
           
           non_zero_coeffs <- which(coef(results$model, s = results$lambda) != 0)
@@ -173,8 +176,9 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
           }
         }
         else {
-          results <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-          y_pred <- predict(results$model, newx = X, type = 'response',s = results$lambda)
+          results <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda,
+                                          family = family, test_size = test__size)
+          y_pred <- predict(results$model, newx = as.matrix(X), type = 'response',s = results$lambda)
           y_pred_avg <- y_pred_avg + 1/R * y_pred
           
           non_zero_coeffs <- which(coef(results$model, s = results$lambda) != 0)
@@ -215,8 +219,8 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
 
 fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_size = 0.2, family = 'gaussian') {
   require(glmnet)
+  X <- as.matrix(X)
   
-  set.seed(123)  # For reproducibility
   n <- nrow(X)
   n_train <- floor((1 - test_size) * n)
   train_indices <- sample(1:n, n_train)
@@ -290,8 +294,8 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
 
 fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5,  test_size = 0.2,family = 'binomial') {
   require(glmnet)
+  X <- as.matrix(X)
   
-  set.seed(123)  # For reproducibility
   n <- nrow(X)
   n_train <- floor((1 - test_size) * n)
   train_indices <- sample(1:n, n_train)
@@ -345,3 +349,38 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
   return(list(model = final_model, lambda = best_model$lambda))
 }
 
+
+topPredictors <- function(X, y, family, alpha, lambda, R, K, test_size) {
+
+  naive_score <- matrix(rep(0,ncol(X) + 1),nrow = 1, ncol = ncol(X) + 1)
+  colnames(naive_score) <- c("Intercept",colnames(X))
+  
+  X <- as.matrix(X)
+  for (i in 1:R) {
+    id <- sample(1:nrow(X), nrow(X), replace = TRUE)
+    X_bootstrap <- X[id, ]
+    y_bootstrap <- y[id]
+    
+    results_bootstrap <- NULL
+    if (family == "gaussian")
+      results_bootstrap <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha,
+                                              lambda = lambda, family = family, test_size = test_size)
+                              
+    else
+      results_bootstrap <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha,
+                                              slambda = lambda, family = family, test_size = test_size)
+
+    non_zero_coeffs <- which(coef(results_bootstrap$model, s= results_bootstrap$lambda) != 0)
+    naive_score[non_zero_coeffs] <- naive_score[non_zero_coeffs] + 1/R
+  }
+  
+  sorted_indices <- order(naive_score, decreasing = TRUE)
+  top_covariates <- colnames(naive_score)[-1][sorted_indices][-1][1:K]  # Excluding the intercept 
+  
+
+  if (sum(naive_score[sorted_indices] != 0) > K) {
+    warning("Model has more than K covariates that are not 0.")
+  }
+  
+  return(list(naive_score = naive_score, top_covariates = top_covariates))
+}

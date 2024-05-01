@@ -7,16 +7,13 @@ checkData <- function(X,y) {
     if (is.null(X) || is.null(y)) 
       stop("X or y is null.")
     
-    if (length(y) != nrow(X))
+    if (dim(y)[1] != dim(X)[1])
       stop("Dimensions of X and y do not match.")
     
-    na_indices <- which(is.na(X) | is.na(y))
-    if (length(na_indices) > 0) {
-      X <- X[-na_indices, ]
-      y <- y[-na_indices]
-    }
+    df <- data.frame(y = y,X)
+    df <- na.omit(df)
   
-    return(cbind(y, X))
+    return(df)
   }
 
 

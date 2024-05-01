@@ -177,7 +177,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
         }
         else {
           results <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda,
-                                          family = family, test_size = test__size)
+                                          family = family, test_size = test_size)
           y_pred <- predict(results$model, newx = as.matrix(X), type = 'response',s = results$lambda)
           y_pred_avg <- y_pred_avg + 1/R * y_pred
           
@@ -294,6 +294,7 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
 
 fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5,  test_size = 0.2,family = 'binomial') {
   require(glmnet)
+  require(pROC)
   X <- as.matrix(X)
   
   n <- nrow(X)
@@ -331,9 +332,9 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     # More info: https://www.geeksforgeeks.org/how-to-calculate-auc-area-under-curve-in-r/
     # AUC is between 0 and 1, higher is better.
     
-    y_pred = predict(model, newx = X_test, response = 'class')
-    roc_object = roc(y_test, y_pred)
-    auc = auc(roc_object)
+    y_pred = predict(model, newx = X_test)
+    roc_object = roc(y_test, y_pred, quiet = T)
+    auc = auc(roc_object, quiet = T)
     
     if (auc > best_auc) {
       best_model <- model

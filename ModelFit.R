@@ -79,6 +79,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     else if (family == 'binomial') {
       y <- factor(y)
+      X <- as.matrix(X)
       if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
         
         model <- glm(y ~ X, family = family)

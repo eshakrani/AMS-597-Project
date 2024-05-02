@@ -1,12 +1,11 @@
 library(glmnet)
 
 
-#' 
-#' @param X Input matrix of co-variates, n by p.
-#' @param y Response vector, n by 1.
+#' @param X Input DataFrame of co-variates, n by p.
+#' @param y Response DataFrame, n by 1.
 #' @param family Output distribution of the y vector (gaussian or binomial)
 #' @param lambda Regularization parameter(s).
-#' @param alpha ElasticNet mixing parameter(s). 
+#' @param alpha ElasticNet mixing parameter(s).
 #' @param bagging Logical
 #' @param topP Indicating whether to perform feature pre screening
 #' @param K Number of top predictors to use.
@@ -14,9 +13,47 @@ library(glmnet)
 #' @param nfolds controls the number of folds for cross validated models
 #' @param test_size controls the test set size for model selection in cross validated models
 #' @param R Number of iterations for bootstrap
-#' 
-#' @example  
-#' 
+#' @param models_list List of models to use during ensemble to train the meta learner.
+#' Either pick a singular model ('svm' or 'randomForest') or both c('svm','randomForest')
+#'
+#' @details
+#' \bold{Input Warningss}
+#' Bagging and ensemble should not be activated at the same time. This function will
+#' does not support bagging ensemble models.
+#'
+#' \bold{Regular Functionality without Bagging and Ensemble}
+#' This function fits a model based on specified input parameters. To get an OLS
+#' fit or regular logistic regression fit, input lambda = 0 and alpha as any value
+#' between 0 and 1. If lambda is a singular value that is not 0, and alpha is a singular value
+#' the model will be fitted with glmnet and returned.
+#'
+#' If lambdas and alphas are both an appropriate list the model will be cross validated
+#' and hyper parameter searched, then returned. Logistic Regression models are compared
+#' by ROC and linear regression models are compared by MSE on the test set.
+#'
+#' \bold{Bagging Functionality}
+#' If Bagging is enabled the same logic as previous is applied. So for each iteration
+#' of bootstrap cross validation and hyper parameter search may be performed which can be
+#' costly. A naive score of what percent of coefficients appeared as non 0 will
+#' be returned along with the bagged predictions.
+#'
+#' For regression a average of the output is taken, and for classification a
+#' average of the predicted probability is taken.
+#'
+#' \bold{Ensemble Functionality}
+#' Stacking is utilized to create an ensemble learned. One or two learners can
+#' be created (limited to SVM and RF) then used to help train a meta learner
+#' which can be a: GLM, SVM or RF. The final meta learner is returned.
+#'
+#' \bold{Top Predictors (TopP)}
+#' In cases of needing to pre screen variables (p >> n) the TopP utilizes
+#' bootstrapped cross validated (over lambda) lasso fits to determine how often
+#' coefficients are retained during fits. These are ranked and printed. Only the
+#' top K covariates will be used in the model. If there are more than K covariates
+#' that appear 100% of the time a warning will be issued.
+#'
+#'
+#'
 modelFit <- function(X,y, family = c("gaussian","binomial"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
                      K = 10, ensemble = FALSE, models_list = c("svm","randomForest"),

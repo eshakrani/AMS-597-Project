@@ -115,13 +115,13 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
     else if (family == 'binomial') {
       y <- factor(y)
       X <- as.matrix(X)
-      if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
+      if (is.null(alpha) && !is.null(lambda) && lambda == 0) {
         
         model <- glm(y ~ X, family = family)
         return(model)
       }
       
-      else if (!is.null(lambda) && !is.null(alpha) && length(alpha) == 1 && length(lambda) == 1) {
+      else if (!is.null(alpha) && length(alpha) == 1) {
         model <- glmnet(X, y, alpha = alpha, lambda = lambda, family = family)
         return(model)
       }

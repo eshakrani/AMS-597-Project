@@ -107,7 +107,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
       else {
         results <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
                                     nfolds = nfolds, test_size = test_size)
-        return(results$model)
+        return(results)
       }
       
     }
@@ -129,7 +129,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
       else {
         results <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
                                          nfolds = nfolds, test_size = test_size)
-        return(results$model)    
+        return(results)    
       }
     }
   
@@ -298,7 +298,7 @@ fitLinearRegressor <- function(X, y, lambda = NULL, alphas, nfolds = 5, test_siz
     
   }
   
-  return(list(model = final_model, lambda = best_model$lambda))
+  return(list(model = final_model, lambda = best_model$lambda, alpha = best_alpha))
 }
 
 
@@ -383,7 +383,7 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     
   }
   
-  return(list(model = final_model, lambda = best_model$lambda))
+  return(list(model = final_model, lambda = best_model$lambda, alpha = best_alpha))
 }
 
 

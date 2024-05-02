@@ -71,9 +71,8 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   # Check assumptions was having issues, will fix later.
   
   if (identical(family, c("gaussian","binomial"))) {
-    family <- family[1]
+    family <- 'gaussian'
   }
-  
   
   
   if (topP) {
@@ -96,7 +95,6 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     
     else if (family == 'gaussian') {
-      
       if (!is.null(lambda) && length(lambda) == 1 && lambda == 0) {
         model <- lm('y ~ .', data = cbind(y,X))
         return(model)
@@ -107,9 +105,9 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
       }
       
       else {
-        model <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
+        results <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
                                     nfolds = nfolds, test_size = test_size)
-        return(model)
+        return(results$model)
       }
       
     }
@@ -129,9 +127,9 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
       }
       
       else {
-        model <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
+        results <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
                                          nfolds = nfolds, test_size = test_size)
-        return(model)    
+        return(results$model)    
       }
     }
   

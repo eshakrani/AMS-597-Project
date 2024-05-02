@@ -41,7 +41,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
   
   if (topP) {
 
-    covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = 1, lambda = lambda
+    covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = 1, lambda = NULL
                                      , test_size = test_size, R = 100, K = K)
     cat("The top covariates found are: ", covariates_list$top_covariates)
 
@@ -61,7 +61,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     else if (family == 'gaussian') {
       
       if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
-        model <- lm(y ~ X)
+        model <- lm('y ~ .', data = cbind(y,X))
         return(model)
       }
       else if (!is.null(alpha) && !is.null(lambda) && length(alpha) == 1) {

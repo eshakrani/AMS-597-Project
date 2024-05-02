@@ -1,15 +1,27 @@
-train_meta_learner_regression <- function(model_names, meta_model_name, X, y, alphas, lambda = NULL, ...) {
-  # Load necessary libraries
+#' Train Meta Learner for Binary Classification and Regression
+#'
+#' This function trains a meta learner for regression using specified base models.
+#' It performs hyperparameter tuning for each base model and combines their predictions to train the meta learner.
+#' Training and tuning is done with glmnet, e1071 and the randomForest package.
+#'
+#' @param model_names A character vector specifying the base models to use. Currently supported models are "svm" and "randomForest".
+#' @param meta_model_name A character string specifying the type of meta learner to use. Currently supported options are "glm", "svm", or "randomForest".
+#' @param X A matrix or data frame containing the predictor variables.
+#' @param y A numeric vector or factor containing the target variable.
+#' @param alphas A numeric scalar/vector specifying the alpha values for elastic net regularization (only applicable when meta_model_name = "glm").
+#' @param lambda A numeric scalar/vector specifying the lambda value for regularization (only applicable when meta_model_name = "glm").
+#'
+#' @return An object representing the trained meta learner.
+
+train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambda = NULL) {
   library(randomForest)
   library(e1071)
-  
+  library(mlr)
+  print(y)
   # Check if model_names is a character vector
   if (!is.character(model_names)) {
     stop("'model_names' argument must be a character vector of model names.")
   }
-  
-  # Combine X and y into a data frame
-  data <- data.frame(X, y)
   
   # Initialize variables to store best models and their predictions
   best_svm_model <- NULL
@@ -18,21 +30,20 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   best_rf_predictions <- NULL
   
   # Function for SVM hyperparameter tuning
-  tune_svm <- function(train_x, train_y, ...) {
-    # Perform grid search for SVM
-    svm_tuned <- tune(svm, train.x = train_x, train.y = train_y, ...)
-    # Select best model
+  tune_svm <- function(train_x, train_y) {
+    
+    svm_tuned <- tune(svm,train.x = train_x, train.y = train_y, ranges = list(cost = 10^(-2:2), gamma = 2^(-5:5)))
     best_svm <- svm_tuned$best.model
+    
     return(best_svm)
   }
   
   # Function for random forest hyper parameter tuning and fitting the best model
-  tune_rf <- function(train_data, train_target, ...) {
-    # Perform grid search for random forest
+  tune_rf <- function(train_data, train_target) {
+    rf_model <- randomForest(x = train_data, y = train_target)
+  
     
-    rf_tuned <- tuneRF(x = train_data, y = train_target, plot = F, trace = F, doBest = T)
-    
-    return(rf_tuned)
+    return(rf_model)
   }
   
   # Iterate through model_names
@@ -42,14 +53,13 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
     # Check if model is SVM or random forest
     if (model_name == "svm") {
       # Hyperparameter tuning for SVM
-      best_svm_model <- tune_svm(train_x = X, train_y = y, ...)
-      
+      best_svm_model <- tune_svm(train_x = X, train_y = y)
       # Predict using the best SVM model
       best_svm_predictions <- predict(best_svm_model, X)
       
     } else if (model_name == "randomForest") {
       # Hyperparameter tuning for random forest
-      best_rf_model <- tune_rf(train_data = X, train_target = y, ...)
+      best_rf_model <- tune_rf(train_data = X, train_target = y)
       
       # Predict using the best Random Forest model
       best_rf_predictions <- predict(best_rf_model, X)
@@ -67,6 +77,7 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   newX <- NULL
   
   if ("svm" %in% model_names & "randomForest" %in% model_names) {
+    # To avoid recursive stack issues concatenate the average of outputs between the two predictors.
     newX <- cbind(X, (as.integer(best_svm_predictions) +  as.integer(best_rf_predictions)) / 2)
   } else if ("svm" %in% model_names ) {
     # Only SVM model was used
@@ -79,65 +90,18 @@ train_meta_learner_regression <- function(model_names, meta_model_name, X, y, al
   }
   
   # Train the meta learner using the concatenated data
-  if (meta_model_name == "glm" & !is.factor(y)) {
+  if (meta_model_name == "glm" & !all(sapply(y, is.factor))) {
     meta_trained <- fitLinearRegressor(as.matrix(newX), y, alphas = alphas, lambda = lambda, family = 'gaussian')
-  } else if (meta_model_name == "glm" & is.factor(y)) {
+  } else if (meta_model_name == "glm" & all(sapply(y, is.factor))) {
     meta_trained <- fitLogisticRegressor(as.matrix(newX), y, alphas = alphas, lambda = lambda, family = 'gaussian')
   } else if (meta_model_name == "svm") {
-    meta_trained <- tune_svm(train_x = newX, train_y = y, ...)
+    meta_trained <- tune_svm(train_x = newX, train_y = y)
   } else if (meta_model_name == "randomForest") {
-    meta_trained <- tune_rf(train_data = newX, train_target = y, ...)
+    meta_trained <- tune_rf(train_data = newX, train_target = y)
   } else {
     stop("Invalid 'meta_model_name'. Choose from 'glm', 'svm', or 'randomForest'.")
   }
   
   return(meta_trained)
 }
-
-
-
-
-# Set seed for reproducibility
-set.seed(123)
-
-head(iris)
-# Generate predictor variables
-X <- iris[, -c(5)]  # Excluding the third and fourth columns
-y <- iris[, 5]  # Creating a binary target variable
-# Display the first few rows of the dataset
-
-y_mapped <- ifelse(y == levels(y)[1], 0, 1)
-
-# Convert to factor
-y_mapped <- factor(y_mapped)
-print(y_mapped)
-
-str(X)
-str(y)
-
-
-set.seed(123)
-n <- 100  # Number of samples
-
-# Generate predictors
-X1 <- rnorm(n)
-X2 <- rnorm(n)
-
-# Generate binary target variable
-y <- X1 - 2 + X2 * 0.3
-
-# Combine predictors and target into a data frame
-binary_data <- data.frame(X1, X2, y)
-
-
-# Train the meta learner using model names and custom X, y
-meta_trained <- train_meta_learner_regression(model_names = c("svm","randomForest"), 
-                                   meta_model_name = "glm", 
-                                   X = binary_data[,-3], 
-                                   y = binary_data[,3], 
-                                   cv_folds = 5,
-                                   lambda = NULL,
-                                   alphas = c(0.5))
-
-meta_trained
 

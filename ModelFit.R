@@ -54,14 +54,14 @@ library(glmnet)
 #'
 #'
 #'
-modelFit <- function(X,y, family = c("gaussian","binomial"), 
+modelFit <- function(X, y, family = c("gaussian","binomial"), 
                      lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
                      K = 10, ensemble = FALSE, models_list = c("svm","randomForest"),
                      meta_learner = c("glm","svm","randomForest"), nfolds = 5, 
                      test_size = 0.2, R = 100) {
 
   
-  data <- checkData(X,y)
+  data <- checkData(X, y)
   X <- data[,-1]
   y <- data[,1]
 
@@ -146,9 +146,9 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
         X_bootstrap <- X[id,]
         y_bootstrap <- y[id]
         model <- NULL
-        if (!is.null(alpha) && !is.null(lambda) && length(alpha) == 1) {
-          if (lambda == 0) {
-            model <- lm(y_bootstrap ~ X_bootstrap)
+        
+          if (lambda == 0 && is.null(alpha)) {
+            model <- lm(y_bootstrap ~ ., data = cbind(y_bootstrap, X_bootstrap))
             y_pred <- predict(model, newdata = data.frame(X))
             y_pred_avg <- y_pred_avg + 1/R * y_pred
             non_zero_coeffs <- which(coef(model) != 0)
@@ -156,15 +156,14 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
             
             next
           }
-          else {
+          else if(!is.null(alpha) && length(alpha) == 1){
             model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-            y_pred <- predict(model, newx = X, type = 'response',s = lambda)
+            y_pred <- predict(model, newx = as.matrix(X), type = 'response',s = lambda)
             y_pred_avg <- y_pred_avg + 1/R * y_pred
             
             non_zero_coeffs <- which(coef(model, s = lambda) != 0)
             naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
             }
-        }
         else {
           results <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha,
                                         lambda = lambda, family = family, test_size = test_size)

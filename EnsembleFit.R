@@ -17,7 +17,6 @@ train_meta_learner <- function(model_names, meta_model_name, X, y, alphas, lambd
   library(randomForest)
   library(e1071)
   library(mlr)
-  print(y)
   # Check if model_names is a character vector
   if (!is.character(model_names)) {
     stop("'model_names' argument must be a character vector of model names.")

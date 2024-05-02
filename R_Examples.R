@@ -1,4 +1,4 @@
-# Examples
+# Gaussian Examples
 
 # Generate synthetic data
 n <- 50
@@ -58,3 +58,25 @@ print(fit8)
 fit9 = modelFit(x, y, family = "gaussian", ensemble = T, lambda = 0, 
                 meta_learner = "randomForest")
 print(fit9)
+
+
+# Logistic Examples
+n <- 1000
+x1 <- rnorm(n, 10, 2)
+x2 <- rnorm(n, 5, 1)
+x3 <- rnorm(n, 8, 3)
+
+# Generate outcome variable
+logistic_function <- function(x1, x2, x3) {
+  p <- 1 / (1 + exp(-(-2 + 0.5 * x1 + 0.3 * x2 - 0.2 * x3)))  # Log odds
+  response <- rbinom(length(x1), 1, p)  # Generate binary response
+  return(response)
+}
+
+y <- factor(logistic_function(x1, x2, x3))
+data <- data.frame(x1 = x1, x2 = x2, x3 = x3, y = as.character(y))
+
+# Simple Logistic Regression
+fit10 = modelFit(data[,c(1,2,3)], data.frame(y), lambda = 0, family = 'binomial')
+fit10$coefficients
+

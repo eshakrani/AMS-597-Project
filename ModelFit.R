@@ -97,7 +97,7 @@ modelFit <- function(X,y, family = c("gaussian","binomial"),
     
     else if (family == 'gaussian') {
       
-      if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && lambda == 0) {
+      if (!is.null(lambda) && length(lambda) == 1 && lambda == 0) {
         model <- lm('y ~ .', data = cbind(y,X))
         return(model)
       }

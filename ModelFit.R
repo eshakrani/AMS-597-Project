@@ -191,24 +191,22 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
         y_bootstrap <- y[id]
         model <- NULL
         
-        if (!is.null(alpha) && !is.null(lambda) && length(lambda) == 1 && length(alpha)) {
-          if (lambda == 0) {
-            model <- glm(y_bootstrap ~ X_bootstrap, family = family)
-            y_pred <- predict(model, newdata = data.frame(X), type = 'response')
-            y_pred_avg <- y_pred_avg + 1/R * y_pred
-            non_zero_coeffs <- which(coef(model) != 0)
-            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
-            
-            next
-          }
-          else {
-            model <- cv.glmnet(as.matrix(X_bootstrap), y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-            y_pred <- predict(model, newx = X, type = 'response',s = model$lambda.min)
-            y_pred_avg <- y_pred_avg + 1/R * y_pred
-            
-            non_zero_coeffs <- which(coef(model, s = model$lambda.min) != 0)
-            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
-          }
+        if (lambda == 0 && is.null(alpha)) {
+          model <- glm(y_bootstrap ~ ., data = cbind(y_bootstrap, X_bootstrap), family = family)
+          y_pred <- predict(model, newdata = data.frame(X), type = 'response')
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          non_zero_coeffs <- which(coef(model) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+          
+          next
+        }
+        else if(!is.null(alpha) && length(alpha) == 1){
+          model <- cv.glmnet(as.matrix(X_bootstrap), y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+          y_pred <- predict(model, newx = as.matrix(X), type = 'response', s = model$lambda.min)
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          
+          non_zero_coeffs <- which(coef(model, s = model$lambda.min) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
         }
         else {
           results <- fitLogisticRegressor(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda,

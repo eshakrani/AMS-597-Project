@@ -54,17 +54,17 @@ library(glmnet)
 #'
 #'
 #'
-modelFit <- function(X, y, family = c("gaussian","binomial"), 
-                     lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE, 
+modelFit <- function(X, y, family = c("gaussian","binomial"),
+                     lambda = c(), alpha = c(), bagging = FALSE, topP = FALSE,
                      K = 10, ensemble = FALSE, models_list = c("svm","randomForest"),
-                     meta_learner = c("glm","svm","randomForest"), nfolds = 5, 
+                     meta_learner = c("glm","svm","randomForest"), nfolds = 5,
                      test_size = 0.2, R = 100) {
-
+  
   
   data <- checkData(X, y)
   X <- data[,-1]
   y <- data[,1]
-
+  
   checkAssumptions(family = family, lambda = lambda, alpha = alpha
                    , bagging = bagging, topP = topP, K = K, ensemble = ensemble
                    , R = R, meta_learner = meta_learner)
@@ -76,11 +76,11 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
   
   
   if (topP) {
-
+    
     covariates_list <- topPredictors(data.frame(X), y, family = family, alpha = 1, lambda = NULL
                                      , test_size = test_size, R = 100, K = K)
     cat("The top covariates found are: ", covariates_list$top_covariates)
-
+    
     X <- X[,covariates_list$top_covariates]
   }
   
@@ -106,7 +106,7 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
       
       else {
         results <- fitLinearRegressor(X, y, alpha = alpha, lambda = lambda,
-                                    nfolds = nfolds, test_size = test_size)
+                                      nfolds = nfolds, test_size = test_size)
         return(results)
       }
       
@@ -128,11 +128,11 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
       
       else {
         results <- fitLinearClassification(X, y, alpha = alpha, lambda = lambda,
-                                         nfolds = nfolds, test_size = test_size)
-        return(results)    
+                                           nfolds = nfolds, test_size = test_size)
+        return(results)
       }
     }
-  
+    
   }
   
   if (bagging) {
@@ -147,23 +147,23 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
         y_bootstrap <- y[id]
         model <- NULL
         
-          if (lambda == 0 && is.null(alpha)) {
-            model <- lm(y_bootstrap ~ ., data = cbind(y_bootstrap, X_bootstrap))
-            y_pred <- predict(model, newdata = data.frame(X))
-            y_pred_avg <- y_pred_avg + 1/R * y_pred
-            non_zero_coeffs <- which(coef(model) != 0)
-            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
-            
-            next
-          }
-          else if(!is.null(alpha) && length(alpha) == 1){
-            model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-            y_pred <- predict(model, newx = as.matrix(X), type = 'response',s = lambda)
-            y_pred_avg <- y_pred_avg + 1/R * y_pred
-            
-            non_zero_coeffs <- which(coef(model, s = lambda) != 0)
-            naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
-            }
+        if (lambda == 0 && is.null(alpha)) {
+          model <- lm(y_bootstrap ~ ., data = cbind(y_bootstrap, X_bootstrap))
+          y_pred <- predict(model, newdata = data.frame(X))
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          non_zero_coeffs <- which(coef(model) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+          
+          next
+        }
+        else if(!is.null(alpha) && length(alpha) == 1){
+          model <- cv.glmnet(as.matrix(X_bootstrap), y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+          y_pred <- predict(model, newx = as.matrix(X), type = 'response',s = model$lambda.min)
+          y_pred_avg <- y_pred_avg + 1/R * y_pred
+          
+          non_zero_coeffs <- which(coef(model, s = model$lambda.min) != 0)
+          naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
+        }
         else {
           results <- fitLinearRegressor(X_bootstrap, y_bootstrap, alpha = alpha,
                                         lambda = lambda, family = family, test_size = test_size)
@@ -174,7 +174,7 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
           non_zero_coeffs <- which(coef(results$model, s = results$lambda) != 0)
           naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
         }
-
+        
       }
       return(list(y_pred_avg = y_pred_avg, naive_score = naive_score))
     }
@@ -198,15 +198,15 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
             y_pred_avg <- y_pred_avg + 1/R * y_pred
             non_zero_coeffs <- which(coef(model) != 0)
             naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
-          
+            
             next
           }
           else {
-            model <- glmnet(X_bootstrap, y_bootstrap, alpha = alpha, lambda = lambda, family = family)
-            y_pred <- predict(model, newx = X, type = 'response',s = lambda)
+            model <- cv.glmnet(as.matrix(X_bootstrap), y_bootstrap, alpha = alpha, lambda = lambda, family = family)
+            y_pred <- predict(model, newx = X, type = 'response',s = model$lambda.min)
             y_pred_avg <- y_pred_avg + 1/R * y_pred
             
-            non_zero_coeffs <- which(coef(model, s = lambda) != 0)
+            non_zero_coeffs <- which(coef(model, s = model$lambda.min) != 0)
             naive_score[1,non_zero_coeffs] <- naive_score[1,non_zero_coeffs] + 1/R
           }
         }
@@ -223,9 +223,9 @@ modelFit <- function(X, y, family = c("gaussian","binomial"),
       }
       
       return(list(y_pred_avg = y_pred_avg, naive_score = naive_score))
-      }
     }
-    
+  }
+  
 }
 
 #' @name 

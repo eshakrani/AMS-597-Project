@@ -78,6 +78,7 @@ data <- data.frame(x1 = x1, x2 = x2, x3 = x3, y = as.character(y))
 
 x = data[,c(1,2,3)]
 y = data.frame(y)
+
 # Simple Logistic Regression
 fit10 = modelFit(x, y, lambda = 0, family = 'binomial')
 fit10$coefficients
@@ -108,7 +109,7 @@ fit15 = modelFit(x, y, family = "binomial", ensemble = T, lambda = 0,
                 models_list = "svm", meta_learner = "svm")
 print(fit15)
 
-# Logistic Regression with Ensemble using random forrest
+# Logistic Regression with Ensemble using random forest
 fit16 = modelFit(x, y, family = "binomial", ensemble = T, lambda = 0, 
                 meta_learner = "randomForest")
 print(fit16)

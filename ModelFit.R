@@ -368,7 +368,7 @@ fitLogisticRegressor <- function(X, y, loss, lambda = NULL, alphas, nfolds = 5, 
     # AUC is between 0 and 1, higher is better.
     
     y_pred = predict(model, newx = X_test)
-    roc_object = roc(y_test, y_pred, quiet = T)
+    roc_object = roc(as.vector(y_test), as.vector(y_pred), quiet = T)
     auc = auc(roc_object, quiet = T)
     
     if (auc > best_auc) {

@@ -35,9 +35,9 @@ fit4 = modelFit(x, y, family = "gaussian", lambda = 0, bagging = T)
 print(fit4$y_pred_avg)
 
 # Linear Regression with Bagging with Lasso constant lambda
-fit5 = modelFit(x, y, family = "gaussian", alpha = 1, lambda = 0.1, bagging = T)
-print(fit5$y_pred_avg)
-print(fit5$naive_score)
+#fit5 = modelFit(x, y, family = "gaussian", alpha = 1, lambda = 0.1, bagging = T)
+#print(fit5$y_pred_avg)
+#print(fit5$naive_score)
 
 # Linear Regression with Bagging with Lasso unknown lambda
 fit6 = modelFit(x, y, family = "gaussian", alpha = 1, bagging = T)
@@ -54,7 +54,7 @@ fit8 = modelFit(x, y, family = "gaussian", ensemble = T, lambda = 0,
                 models_list = "svm", meta_learner = "svm")
 print(fit8)
 
-# Linear Regression with Ensemble using SVM
+# Linear Regression with Ensemble using random forrest
 fit9 = modelFit(x, y, family = "gaussian", ensemble = T, lambda = 0, 
                 meta_learner = "randomForest")
 print(fit9)
@@ -76,7 +76,39 @@ logistic_function <- function(x1, x2, x3) {
 y <- factor(logistic_function(x1, x2, x3))
 data <- data.frame(x1 = x1, x2 = x2, x3 = x3, y = as.character(y))
 
+x = data[,c(1,2,3)]
+y = data.frame(y)
 # Simple Logistic Regression
-fit10 = modelFit(data[,c(1,2,3)], data.frame(y), lambda = 0, family = 'binomial')
+fit10 = modelFit(x, y, lambda = 0, family = 'binomial')
 fit10$coefficients
 
+# Logistic Regression using Elastic Net
+alpha0 = 0.5
+fit11 = modelFit(x, y, family = "binomial", alpha = alpha0)
+print(fit11)
+coef(fit11)[,50]
+predict(fit11, newx = as.matrix(x), s = min(fit11$lambda), type = "response")[1:10]
+
+# Logistic Regression with Bagging: error here
+fit12 = modelFit(x, y, family = "binomial", lambda = 0, bagging = T)
+print(fit12$y_pred_avg[1:10])
+
+# Logistic Regression with Bagging with Lasso unknown lambda
+fit13 = modelFit(x, y, family = "binomial", alpha = 1, bagging = T)
+print(fit13$y_pred_avg[1:10])
+print(fit13$naive_score)
+
+# Logistic Regression with Ensemble using GLM
+fit14 = modelFit(x, y, family = "binomial", ensemble = T, alpha = 1, 
+                meta_learner = "glm")
+print(fit14)
+
+# Logistic Regression with Ensemble using SVM: works but takes a long time
+fit15 = modelFit(x, y, family = "binomial", ensemble = T, lambda = 0, 
+                models_list = "svm", meta_learner = "svm")
+print(fit15)
+
+# Logistic Regression with Ensemble using random forrest
+fit16 = modelFit(x, y, family = "binomial", ensemble = T, lambda = 0, 
+                meta_learner = "randomForest")
+print(fit16)
